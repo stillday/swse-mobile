@@ -1,0 +1,129 @@
+{{!--
+    The compact play view.  Everything on this page is either a number a player is asked for
+    during a turn, or a button that triggers a roll.  Nothing here creates or edits an item:
+    character building stays on the full sheet, one tap away via the header button.
+--}}
+<div class="play-scroll">
+
+    {{#if missing.length}}
+        {{!-- Never fail silently: if the actor did not provide something, say so. --}}
+        <div class="play-group">
+            <h3>{{localize "SWSEMOBILE.Play.Incomplete"}}</h3>
+            {{#each missing as |m|}}<div class="play-empty">{{m}}</div>{{/each}}
+        </div>
+    {{/if}}
+
+    {{!-- ---------------------------------------------------------------- hit points --}}
+    <div class="play-group">
+        <h3>{{localize "SWSEMOBILE.Play.HitPoints"}} <span class="m">/ {{hp.max}}</span></h3>
+        <div class="play-hp">
+            <button type="button" data-action="hp-delta" data-delta="-5" aria-label="-5">-5</button>
+            <button type="button" data-action="hp-delta" data-delta="-1" aria-label="-1">-1</button>
+            <input name="hp" type="number" value="{{hp.value}}" {{#unless editable}}disabled{{/unless}}
+                   aria-label="{{localize 'SWSEMOBILE.Play.HitPoints'}}"/>
+            <button type="button" data-action="hp-delta" data-delta="1" aria-label="+1">+1</button>
+            <button type="button" data-action="hp-delta" data-delta="5" aria-label="+5">+5</button>
+        </div>
+        {{#if hasShields}}
+            <div class="play-hp" style="margin-top:0.4rem">
+                <button type="button" data-action="shield-delta" data-delta="-5" aria-label="-5">-5</button>
+                <input name="shields" type="number" value="{{shields.value}}" {{#unless editable}}disabled{{/unless}}
+                       aria-label="{{localize 'SWSEMOBILE.Play.Shields'}}"/>
+                <button type="button" data-action="shield-delta" data-delta="5" aria-label="+5">+5</button>
+            </div>
+            <div class="play-empty">{{localize "SWSEMOBILE.Play.Shields"}} / {{shields.max}}</div>
+        {{/if}}
+    </div>
+
+    {{!-- ----------------------------------------------------------------- defences --}}
+    {{#if defenses.length}}
+        <div class="play-group">
+            <h3>{{localize "SWSEMOBILE.Play.Defenses"}}</h3>
+            <div class="play-stats">
+                {{#each defenses as |d|}}
+                    <div class="play-stat">
+                        <span class="k">{{localize d.label}}</span>
+                        <span class="v">{{d.value}}</span>
+                    </div>
+                {{/each}}
+            </div>
+        </div>
+    {{/if}}
+
+    {{!-- ---------------------------------------------------------- condition track --}}
+    <div class="play-group">
+        <h3>{{localize "SWSEMOBILE.Play.Condition"}}
+            {{#if recovery.total}}<span class="m">{{recovery.actions}}/{{recovery.total}}</span>{{/if}}
+        </h3>
+        <div class="play-track">
+            {{#each conditionTrack as |c|}}
+                <button type="button" data-action="condition" data-value="{{c.value}}"
+                        aria-pressed="{{#if c.active}}true{{else}}false{{/if}}"
+                        {{#unless ../editable}}disabled{{/unless}}>{{c.value}}</button>
+            {{/each}}
+        </div>
+    </div>
+
+    {{!-- ------------------------------------------------------------- quick numbers --}}
+    <div class="play-group">
+        <h3>{{localize "SWSEMOBILE.Play.AtAGlance"}}</h3>
+        <div class="play-stats">
+            {{#each glance as |g|}}
+                {{#if g.variable}}
+                    <button type="button" class="play-stat" data-action="roll" data-variable="{{g.variable}}">
+                        <span class="k">{{localize g.label}}</span>
+                        <span class="v">{{g.value}}</span>
+                    </button>
+                {{else}}
+                    <div class="play-stat">
+                        <span class="k">{{localize g.label}}</span>
+                        <span class="v">{{g.value}}</span>
+                    </div>
+                {{/if}}
+            {{/each}}
+        </div>
+    </div>
+
+    {{!-- ------------------------------------------------------------------ attacks --}}
+    <div class="play-group">
+        <h3>{{localize "SWSEMOBILE.Play.Attacks"}}</h3>
+        {{#if attacks.length}}
+            {{#each attacks as |atk|}}
+                <button type="button" class="play-row" data-action="attack" data-attack-key="{{atk.key}}">
+                    <i class="fa-solid fa-dice-d20"></i>
+                    <span class="n">{{atk.name}}</span>
+                    {{!-- escaped on purpose: _prepareContext already stripped the markup --}}
+                    <span class="m">{{atk.toHit}}{{#if atk.damage}} / {{atk.damage}}{{/if}}</span>
+                </button>
+            {{/each}}
+        {{else}}
+            <div class="play-empty">{{localize "SWSEMOBILE.Play.NoAttacks"}}</div>
+        {{/if}}
+    </div>
+
+    {{!-- ------------------------------------------------------------------- skills --}}
+    <div class="play-group">
+        <h3>{{localize "SWSEMOBILE.Play.Skills"}}
+            <button type="button" class="play-filter" data-action="toggle-trained">
+                {{#if trainedOnly}}{{localize "SWSEMOBILE.Play.ShowAll"}}{{else}}{{localize "SWSEMOBILE.Play.TrainedOnly"}}{{/if}}
+            </button>
+        </h3>
+        {{#if skills.length}}
+            {{#each skills as |sk|}}
+                <button type="button" class="play-row" data-action="roll" data-variable="{{sk.variable}}">
+                    <i class="fa-solid fa-dice-d20"></i>
+                    <span class="n">{{sk.label}}{{#if sk.trained}} <i class="fa-solid fa-star" style="font-size:0.7em"></i>{{/if}}</span>
+                    <span class="m">{{sk.value}}</span>
+                </button>
+            {{/each}}
+        {{else}}
+            <div class="play-empty">{{localize "SWSEMOBILE.Play.NoSkills"}}</div>
+        {{/if}}
+    </div>
+
+    {{!-- ------------------------------------------------------------ the full sheet --}}
+    <button type="button" class="play-row" data-action="open-full">
+        <i class="fa-solid fa-up-right-from-square"></i>
+        <span class="n">{{localize "SWSEMOBILE.Play.OpenFull"}}</span>
+    </button>
+</div>

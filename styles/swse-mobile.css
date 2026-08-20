@@ -1,0 +1,969 @@
+/* =====================================================================================
+ *  swse-mobile — responsive layout and touch sizing for the SWSE sheets
+ *  ------------------------------------------------------------------------------------
+ *  WHERE THIS LANDS IN THE CASCADE
+ *
+ *  Foundry injects package stylesheets as `@import "src" layer(...)`
+ *  (fvtt14/resources/app/templates/views/layouts/main.hbs:38-53).  The layer defaults to
+ *  "system" for a system's `styles` and to "modules" for a module's
+ *  (dist/server/views/view.mjs `_getStaticContent`: `void 0===s?"system":s` and
+ *  `void 0===t?"modules":t`).  The single ordering statement at foundry2.css:5 declares
+ *
+ *      reset, variables, elements, blocks, applications, compatibility,
+ *      layouts, system, modules, exceptions
+ *
+ *  so `modules` outranks both `system` (swse.css) and every core layer.  That means plain
+ *  selectors here beat swse.css regardless of specificity and NO `!important` is needed —
+ *  except against *inline* style attributes, which no stylesheet can outrank.  The window
+ *  geometry of an ApplicationV1 lives in inline styles, so that is done in JS
+ *  (scripts/window-fit.mjs) instead of being forced from here.
+ *
+ *  THE THREE GATES
+ *
+ *    (pointer: coarse)      — a finger, not a mouse.  Everything that only changes *sizes*
+ *                             of hit areas is gated on this, so a desktop mouse user sees
+ *                             byte-for-byte the same sheet even with the module enabled.
+ *    (max-width: 1023px)    — below Foundry's own MIN_VIEWPORT_DIMENSIONS of 1024x768
+ *                             (client/helpers/client-issues.mjs:47).  Layout stays
+ *                             two-dimensional but the tab strip has to scroll.
+ *    (max-width: 700px)     — phone territory: one column.
+ *
+ *  Nothing outside these queries applies, which is why "module disabled" and "module
+ *  enabled on a desktop" render identically.
+ * ===================================================================================== */
+
+/* Design tokens.  Declared unconditionally (custom properties cost nothing until used) so
+ * that a world can retune the touch floor without editing rules. */
+:root {
+  /* WCAG 2.5.5 AAA / Apple HIG minimum. */
+  --swse-mob-target: 44px;
+  /* Inputs must be taller than a control that sits inside them. */
+  --swse-mob-field: 48px;
+  /* Horizontal pitch for the stacked .control-N / .left-control-N icon columns. */
+  --swse-mob-pitch: 48px;
+}
+
+/* =====================================================================================
+ *  1.  TOUCH SIZING — gated on (pointer: coarse) only, so it also applies to a tablet in
+ *      landscape where the layout itself is fine.
+ * ===================================================================================== */
+@media (pointer: coarse) {
+
+  /* ---- 1a. the tab strip ------------------------------------------------------------
+   * swse.css sets `.tabs { height: 40px }` and `.tabs .item { line-height: 40px;
+   * flex-grow: 1 }` (scss/components/_tabs.scss).  With `flex-grow` and no wrapping the
+   * ten anchors of the character sheet needed 751px of the 374px available at 390px
+   * viewport width, and `nav.sheet-tabs` has `overflow-x: visible` — so five of the ten
+   * simply sat outside the window with no way to reach them (measured: tabs 6-10 at
+   * x=411..759 of a 390px viewport, hitTest null).  Make the strip a real scroller and
+   * stop the anchors from being squeezed. */
+  .swse nav.sheet-tabs {
+    height: auto;
+    min-height: var(--swse-mob-target);
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overflow-y: hidden;
+    /* let a horizontal flick scroll the strip instead of being claimed as a page pan */
+    touch-action: pan-x;
+    scroll-snap-type: x proximity;
+    scrollbar-width: thin;
+    /* the anchors carry their own separators; a strip that scrolls needs no side border */
+    align-items: stretch;
+  }
+
+  .swse nav.sheet-tabs > a.item {
+    flex: 0 0 auto;
+    min-height: var(--swse-mob-target);
+    line-height: normal;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 12px;
+    white-space: nowrap;
+    scroll-snap-align: start;
+  }
+
+  /* A strip that scrolls has to look like it scrolls, or the tabs past the edge are just as
+   * invisible as before — the whole point of the change.  A mask fading the right edge is
+   * the standard cue and costs no layout. */
+  .swse nav.sheet-tabs {
+    -webkit-mask-image: linear-gradient(to right, #000 0, #000 calc(100% - 24px), transparent 100%);
+    mask-image: linear-gradient(to right, #000 0, #000 calc(100% - 24px), transparent 100%);
+  }
+
+  /* ...but not once it is scrolled to the end, where there is nothing left to hint at.
+   * `animation-timeline: scroll()` is the CSS-only way to know that; if the browser does not
+   * support it the mask simply stays, which is the safe direction. */
+  @supports (animation-timeline: scroll(self inline)) {
+    .swse nav.sheet-tabs {
+      animation: swse-mob-tabfade steps(1) both;
+      animation-timeline: scroll(self inline);
+      animation-range: calc(100% - 8px) 100%;
+    }
+    @keyframes swse-mob-tabfade {
+      to {
+        -webkit-mask-image: none;
+        mask-image: none;
+      }
+    }
+  }
+
+  /* ---- 1b. fields ------------------------------------------------------------------
+   * swse.css gives every field `min-height: 32px` and `select` a hard `height: 32px`. */
+  .swse input[type="text"],
+  .swse input[type="number"],
+  .swse input[type="password"],
+  .swse select,
+  .swse textarea,
+  .swse .input,
+  .swse .left-input,
+  .swse .right-input,
+  .swse .middle-input {
+    min-height: var(--swse-mob-field);
+  }
+
+  .swse select {
+    height: var(--swse-mob-field);
+  }
+
+  .swse button {
+    min-height: var(--swse-mob-target);
+    min-width: var(--swse-mob-target);
+  }
+
+  /* ---- 1c. icon controls in the normal flow ----------------------------------------
+   * `a.item-control`, `a.change-control`, `a.control`, the bare `<a>` inside a
+   * `.section-header-controls` or `.header-row` — all measured 17.5x16 or thereabouts.
+   * They are inline anchors wrapping a Font Awesome `<i>`, so growing them is safe. */
+  .swse a.item-control,
+  .swse a.change-control,
+  .swse .section-header-controls > a,
+  .swse .item-controls > a,
+  .swse .header-row > a,
+  .swse .change-control,
+  .swse label.resource-label > a,
+  .swse .resource-label > a,
+  .swse a.editor-edit,
+  .swse .clickable > a,
+  .swse .toggle > a,
+  .swse .collapse-toggle {
+    min-width: var(--swse-mob-target);
+    min-height: var(--swse-mob-target);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* `.change-controls { flex-basis: 48px }` (scss/components/_change.scss) is sized for
+   * three 16px icons.  Three 44px icons need 132px plus gaps. */
+  .swse .change-controls {
+    flex: 0 0 auto;
+    flex-basis: calc(3 * var(--swse-mob-target) + 8px);
+    align-items: center;
+  }
+
+  .swse .change-controls > .change-control {
+    flex: 0 0 var(--swse-mob-target);
+    min-height: var(--swse-mob-target);
+  }
+
+  /* The change rows themselves are 28px tall headers/rows; a 44px control inside a 28px
+   * row overflows it. */
+  .swse .change-list > .change,
+  .swse .change-list-header,
+  .swse .flex-table-header {
+    height: auto;
+    min-height: var(--swse-mob-target);
+  }
+
+  /* ---- 1d. the .control-N stack comes out of absolute positioning -------------------
+   * swse.css positions these `absolute` inside the field at `right: 0.4rem / 1.9rem /
+   * 3.4rem` — a 24px pitch built for 17.5px icons.  Two attempts are possible:
+   *
+   *   (i)  keep them absolute, grow them to 44px and widen the pitch to 48px, reserving
+   *        room with `padding-right` on the field;
+   *   (ii) take them out of absolute positioning so they flow onto their own line.
+   *
+   * (i) was measured first and it does not hold: `padding-right` moves the *text* but not
+   * the box, so `document.elementFromPoint` at the centre of a narrowed field still lands
+   * on a control — the Species field on the summary tab came back `obscured`, hit by its
+   * own `.control-1`.  At phone width there is simply not enough room for a value and
+   * three 44px buttons on one line.
+   *
+   * So (ii): the field keeps the whole line, the buttons get the next one.  Deterministic,
+   * no overlap is geometrically possible, and it costs one row of height per field that
+   * has controls at all. */
+  .swse .labeled-input:has(> [class*="control"]) {
+    flex-flow: row wrap;
+    align-items: center;
+    row-gap: 2px;
+    column-gap: 4px;
+  }
+
+  /* label and value each take the full line; the controls wrap below */
+  .swse .labeled-input:has(> [class*="control"]) > label,
+  .swse .labeled-input:has(> [class*="control"]) > input:not([type="checkbox"]):not([type="radio"]),
+  .swse .labeled-input:has(> [class*="control"]) > select,
+  .swse .labeled-input:has(> [class*="control"]) > textarea,
+  .swse .labeled-input:has(> [class*="control"]) > .input,
+  .swse .labeled-input:has(> [class*="control"]) > .plain {
+    flex: 1 1 100%;
+  }
+
+  /* `[class*="control"]` covers `.control`, `.control-0..2`, `.left-control*` and the
+   * `.toggle.control` wrappers — every direct child swse.css positions absolutely. */
+  .swse .labeled-input > [class*="control"] {
+    position: static;
+    flex: 0 0 auto;
+    min-width: var(--swse-mob-target);
+    min-height: var(--swse-mob-target);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    inset: auto;
+    border-radius: 8px;
+  }
+
+  /* The wrapper is only a box: the click handler lives on the `<a>` inside it
+   * (`div.control-0 > a.rollable` measured 17.5x20 even after the wrapper reached 44px),
+   * so the anchor is what has to fill it. */
+  .swse .labeled-input > [class*="control"] > a,
+  .swse .labeled-input > [class*="control"] > button {
+    min-width: var(--swse-mob-target);
+    min-height: var(--swse-mob-target);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* The per-use checkbox strips (`left-control-{{n}}`, one per second wind / first aid) are
+   * checkboxes rather than wrappers, so they are sized directly. */
+  .swse .labeled-input > input[type="checkbox"][class*="control"] {
+    position: static;
+    inset: auto;
+    width: var(--swse-mob-target);
+    height: var(--swse-mob-target);
+    min-width: var(--swse-mob-target);
+    flex: 0 0 auto;
+    margin: 0;
+  }
+
+  /* ---- 1e. checkboxes and radios ----------------------------------------------------
+   * Measured 20x20 (`.skill.direct`, `.condition-radio`, `.gravity-radio`, the settings
+   * toggles).  The box itself only needs to be legible; the *hit area* is what has to be
+   * 44px, and every one of these is wrapped in its own `<label>`, which is exactly the
+   * element a finger lands on.  So the label becomes the target and the box grows a
+   * little for legibility.  This is why the audit measures an *effective* rect: a 24px box
+   * inside a 44px label is a 44px target. */
+  .swse input[type="checkbox"],
+  .swse input[type="radio"] {
+    width: 26px;
+    height: 26px;
+  }
+
+  /* A box with no `<label>` around it has no wrapper to inherit the hit area from, so it has
+   * to be the target itself.  Measured case: `div.mode-selector > input` at 26x26. */
+  .swse :not(label) > input[type="checkbox"],
+  .swse :not(label) > input[type="radio"] {
+    min-width: var(--swse-mob-target);
+    min-height: var(--swse-mob-target);
+  }
+
+  .swse label:has(> input[type="checkbox"]),
+  .swse label:has(> input[type="radio"]) {
+    min-width: var(--swse-mob-target);
+    min-height: var(--swse-mob-target);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    /* the whole label is tappable, so make that visible */
+    cursor: pointer;
+  }
+
+  /*
+   * A table cell must keep `display: table-cell`.  An earlier version of this rule gave
+   * `td:has(> label > input[type="radio"])` `display: inline-flex` to make the cell itself the
+   * target — which takes the cell out of the table and collapses the row.  Measured on the
+   * Condition track at 1180x820: the six radio cells stacked into one column and the header
+   * row rendered as "-1-2-5-10Out".  Size the cell, lay out the label.
+   */
+  .swse td:has(> label > input[type="radio"]),
+  .swse td:has(> label > input[type="checkbox"]),
+  .swse th:has(> label > input[type="radio"]),
+  .swse th:has(> label > input[type="checkbox"]) {
+    min-width: var(--swse-mob-target);
+    height: var(--swse-mob-target);
+  }
+
+  .swse :is(td, th) > label:has(> input[type="radio"]),
+  .swse :is(td, th) > label:has(> input[type="checkbox"]) {
+    display: flex;
+    min-width: var(--swse-mob-target);
+    min-height: var(--swse-mob-target);
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+  }
+
+  /* The dark side track is a long strip of radios with a number above each one. */
+  .swse .dark-side-block label:has(> input.dark-side-button) {
+    flex-direction: column;
+    min-width: var(--swse-mob-target);
+  }
+
+  /* ---- 1f. the skills table --------------------------------------------------------
+   * `th > a.rollable` measured 20.5x16 and `th > a` (the skill name link) 68x16 — 44 of
+   * them on the summary tab alone, the single biggest group.  Both live in the same `<th>`
+   * of `skill-row.hbs`. */
+  .swse table.skill tbody tr {
+    height: auto;
+  }
+
+  .swse table.skill th > a,
+  .swse table.skill td > a,
+  .swse table.skill th > .toggle,
+  .swse table.skill th > .toggle > a {
+    min-height: var(--swse-mob-target);
+    display: inline-flex;
+    align-items: center;
+  }
+
+  /* the d20 roll link and the collapse toggle are icon-only: they need width too */
+  .swse table.skill th > a.rollable,
+  .swse table.skill th > .toggle > a {
+    min-width: var(--swse-mob-target);
+    justify-content: center;
+  }
+
+  /* the skill-name link: short names ("Jump", "Ride") measured 29px wide */
+  .swse table.skill th > a[href] {
+    min-width: var(--swse-mob-target);
+  }
+
+  /* Every other table on the sheet has icon links in its header cells too (the Class tab's
+   * `th > a` measured 17.5x16), so the rule is not limited to `table.skill`. */
+  .swse .sheet-body th > a,
+  .swse .sheet-body td > a {
+    min-height: var(--swse-mob-target);
+    display: inline-flex;
+    align-items: center;
+  }
+
+  /* ---- 1g. the general icon-anchor rule ----------------------------------------
+   * The templates are full of anchors whose entire content is a Font Awesome glyph, in
+   * containers this stylesheet cannot enumerate one by one (three remained on the Equipment
+   * tab as a bare `div > a` at 17.5x16 after the targeted rules above).  An anchor is an
+   * icon button exactly when it carries a `data-action`, carries a `fa*` class itself, or
+   * contains nothing but an `<i>`.  Prose links in the Notes tab match none of those, so
+   * they keep their inline flow. */
+  .swse .sheet-body a[data-action],
+  .swse .sheet-body a[class*="fa-"],
+  .swse .sheet-body a:has(> i.fas),
+  .swse .sheet-body a:has(> i.far),
+  .swse .sheet-body a:has(> i.fa-solid) {
+    min-width: var(--swse-mob-target);
+    min-height: var(--swse-mob-target);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* ---- 1h. rows with a hard height cannot host a 44px control ------------------
+   * `.header-row { height: 20px; max-height: 20px; min-height: 20px }` and
+   * `.search-row { height: 30px; ... }` (scss/components/_resource.scss).  A 44px anchor
+   * inside a 20px row spills onto whatever is below it — measured: the "+" in an item
+   * list's header row came back `obscured`, hit by the search field of the row beneath. */
+  .swse .header-row {
+    height: auto;
+    min-height: var(--swse-mob-target);
+    max-height: none;
+    align-items: center;
+  }
+
+  .swse .search-row {
+    height: auto;
+    min-height: var(--swse-mob-field);
+    max-height: none;
+    align-items: center;
+  }
+
+  /* ---- 1i. the warnings are clickable -----------------------------------------
+   * `warningsFromActor` emits `<span data-action="compendium" ...>Please Select a Species
+   * </span>` (swse/module/actor/warnings.mjs:41,46,48) — a real control that opens the
+   * compendium browser, rendered as 16px-tall text. */
+  .swse .warning span[data-action],
+  .swse .error span[data-action],
+  .swse .warning span[class] {
+    min-height: var(--swse-mob-target);
+    display: inline-flex;
+    align-items: center;
+  }
+
+  /* ---- 1j. clickable legends ------------------------------------------------
+   * `<label for="gender" class="text clickable">` (actor-summary.hbs:56,62) opens a picker.
+   * Measured 27x14. */
+  .swse .labeled-input > label.clickable {
+    min-width: var(--swse-mob-target);
+    min-height: var(--swse-mob-target);
+    display: inline-flex;
+    align-items: center;
+    justify-content: flex-start;
+  }
+
+  /* ---- 1k. item lists --------------------------------------------------------------
+   * `.items-list .item-controls { flex: 0; flex-basis: 48px }` (css/swse.css:878) is sized
+   * for four 17.5px icons on one line.  Four 44px icons do not fit 48px, so they wrapped
+   * into a vertical stack ~176px tall inside a 24px row — which is what pushed the second
+   * item of the Equipped list out of its container.  Let the control cluster take the width
+   * it needs and keep it on one line. */
+  .swse .items-list .item-controls,
+  .swse .item-controls {
+    flex: 0 0 auto;
+    flex-basis: auto;
+    display: flex;
+    flex-flow: row nowrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 2px;
+  }
+
+  /* `.items-list .item { line-height: 24px }` cannot host a 44px control either. */
+  .swse .items-list .item,
+  .swse .items-list .feat {
+    line-height: normal;
+    height: auto;
+    min-height: var(--swse-mob-target);
+  }
+
+  .swse .item-name,
+  .swse h4.item-name,
+  .swse span.text-box,
+  .swse .item-image,
+  .swse td.item-image {
+    min-height: var(--swse-mob-target);
+  }
+
+  /* The image cell is the item's drag handle and its "open the item" target.  In a
+   * `table-layout: auto` table it collapses to the picture's own 26px (measured on the Class
+   * tab once the table was allowed to size its own columns), so it needs a floor as well. */
+  .swse td.item-image {
+    min-width: var(--swse-mob-target);
+  }
+
+  .swse h4.item-name,
+  .swse span.text-box {
+    display: flex;
+    align-items: center;
+  }
+
+  /* ---- 1l. no hover on a touch screen ----------------------------------------------
+   * swse.css expresses "this is clickable" almost exclusively through `:hover`
+   * (`.rollable:hover`, `.labeled-input .toggle :hover`, `.tabs .item:hover`).  A finger
+   * never hovers, so the affordance has to be permanent, and the feedback has to move to
+   * `:active`, which touch does deliver. */
+  .swse .rollable,
+  .swse .clickable,
+  .swse span.text-box,
+  .swse .toggle,
+  .swse .item-control,
+  .swse .change-control {
+    cursor: pointer;
+    /* Chromium's default 300ms grey flash is the wrong feedback for a game sheet */
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .swse .rollable:active,
+  .swse .clickable:active,
+  .swse span.text-box:active,
+  .swse .toggle:active,
+  .swse .item-control:active,
+  .swse .change-control:active,
+  .swse nav.sheet-tabs > a.item:active,
+  .swse button:active {
+    /* the same emphasis swse.css gives :hover, on the event touch actually fires */
+    color: #000;
+    text-shadow: 0 0 10px var(--color-shadow-primary);
+    background-color: rgba(0, 0, 0, 0.08);
+  }
+
+  /*
+   * The Hit Points block packs three fields into one row (Base Attack, Grapple, Speed) and two
+   * of them just grew a control column, so the third gets squeezed.  What that squeezes is the
+   * worst possible field: `#characterSpeed` shows `actor.speed`, which is a sentence
+   * ("Base Speed 6") and not a number, and its overflow fallback is a `title` attribute
+   * (swse/templates/actor/parts/actor-health.hbs) — i.e. a tooltip, which needs a
+   * `pointerenter` that a finger never sends (tooltip-manager.mjs:118-121).  Measured: 130px of
+   * text in a 104px box before this module, 68px after.
+   *
+   * Let the block's rows wrap and give each field room for that sentence.  A previous attempt
+   * used `:has(> input[disabled][title])` to single out that one field and give it `flex: 1 1
+   * 100%`; measured, it did not change the width at all (still 68px of 130px needed), so it is
+   * replaced by these two plain rules, which do not depend on `:has()` resolving the way I
+   * expected and which hold at every touch width rather than only below 1024px.
+   */
+  .swse .health-block .flex-row {
+    flex-wrap: wrap;
+  }
+
+  .swse .health-block .flex-row > .labeled-input {
+    min-width: 10rem;
+  }
+
+  /* A field that is edited by tapping a span looks like text.  Mark it. */
+  .swse span.text-box {
+    text-decoration: underline dotted rgba(0, 0, 0, 0.45);
+    text-underline-offset: 3px;
+  }
+
+  /* ---- 1m. scrolling ---------------------------------------------------------------
+   * `overscroll-behavior: contain` keeps a flick that reaches the end of the sheet from
+   * scrolling whatever is behind it.
+   *
+   * `touch-action` is deliberately NOT restricted here.  An earlier version set
+   * `touch-action: pan-y` on `.window-content` and `.sheet-body`, reasoning that a tap should
+   * not be mistaken for a horizontal drag.  That is wrong: the browser intersects the
+   * `touch-action` values from the touched element up through its ancestors, so `pan-y` on the
+   * window content and `pan-x` on `nav.sheet-tabs` intersect to *nothing* and the tab strip —
+   * the one element that has to scroll sideways — could not be swiped at all.  The default
+   * `auto` is correct; `manipulation` on the individual controls below is what stops a tap
+   * from being read as a gesture, and it does so without constraining an axis. */
+  .swse .window-content,
+  .swse .sheet-body,
+  .swse .scroll-container {
+    overscroll-behavior: contain;
+  }
+
+  .swse button,
+  .swse a.item-control,
+  .swse a.change-control,
+  .swse .rollable,
+  .swse nav.sheet-tabs > a.item {
+    /* stop a slightly imprecise tap from being classified as a pan and swallowed */
+    touch-action: manipulation;
+  }
+}
+
+/* =====================================================================================
+ *  2.  COMPACT — viewport below Foundry's own 1024x768 minimum.
+ *      Layout still two-dimensional; the window has to stop pretending it is 1000x900.
+ * ===================================================================================== */
+@media (max-width: 1023px) {
+
+  /* Safety net behind scripts/window-fit.mjs: even if the JS never ran, the window can no
+   * longer claim more room than exists.  `max-*` beats the inline `width`/`height` that
+   * ApplicationV1 writes, because max-width is a different property — no !important
+   * needed, unlike for width itself. */
+  .swse.sheet.window-app,
+  .swse.sheet.application {
+    max-width: 100vw;
+    max-height: 100vh;
+  }
+
+  /* The window title is clipped to 27px of an 89px string by the header controls. */
+  .swse .window-header > h4.window-title {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* An ApplicationV1 header renders every control with its label ("Close", "Sheet", and the
+   * Play View entry this module adds).  Measured at 390px: the header needed 453px and was
+   * clipped to 390.  Keep the icons, drop the words — they are all standard icons. */
+  .swse .window-header a.header-button,
+  .swse .window-header a.header-control {
+    font-size: 0;                       /* hides the text node, keeps the <i> icon sized */
+    min-width: var(--swse-mob-target);
+    min-height: var(--swse-mob-target);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+  }
+
+  .swse .window-header a.header-button > i,
+  .swse .window-header a.header-control > i {
+    font-size: 1rem;
+  }
+
+  .swse .window-header {
+    height: auto;
+    min-height: var(--swse-mob-target);
+    flex-wrap: nowrap;
+    overflow: hidden;
+  }
+
+  /* Any block that directly wraps a table gets its own horizontal scroller, so a table
+   * that genuinely cannot narrow (`table.fixed td { white-space: nowrap }`,
+   * scss/components/_resource.scss) stays fully reachable without the *sheet* scrolling
+   * sideways.  This is the one place a horizontal scrollbar is correct. */
+  .swse .sheet-body div:has(> table),
+  .swse .skills-header {
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+  }
+
+  .swse .sheet-body table {
+    max-width: none;
+  }
+
+  /*
+   * `table.fixed` (the Class tab's level table, the only `table-layout: fixed` table in the
+   * templates) combines fixed layout with `td { white-space: nowrap }`
+   * (scss/components/_resource.scss).  Squeezed to 374px it does not scroll — it *overlaps*:
+   * measured at 390px, the class name "Scoundrel" and the Class-HP value "8" painted on top
+   * of each other, and so did "20" and the "+" beside it.  Giving it its content width makes
+   * the wrapper above actually scroll, which is the readable outcome.  Scoped to
+   * `table.fixed` so `table.skill` keeps fitting at tablet width instead of being forced
+   * into a scroller it does not need.
+   */
+  .swse .sheet-body table.fixed {
+    /* `table-layout: fixed` hands every column the same width no matter what is in it, so
+     * `min-width: max-content` alone still squeezed the Class-HP column to 54px for 95px of
+     * content.  Letting the columns size themselves is what stops the overlap; the table is
+     * then wider than the panel, which is exactly what the scroller above is for. */
+    table-layout: auto;
+    min-width: max-content;
+  }
+
+  /* The Class tab puts its table directly inside the tab panel, so the panel is the wrapper. */
+  .swse .sheet-body > .tab:has(> table) {
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+  }
+
+  /*
+   * Header cells collide once the body cells below them have a 44px floor.  Measured on the
+   * Gravity block at 820px, where it shares a row with Condition and the Portrait: the four
+   * radio cells claimed 4x44px, the header was left with less than its text needed and rendered
+   * as "Normal HighLowZero".  `white-space: nowrap` raises the table's min-content width to the
+   * width of the labels, which a table never shrinks below — so the header stays legible and the
+   * wrapper above scrolls instead.  `table.skill` is excluded: its header cells are rotated -25°
+   * with `overflow: visible` (swse/scss/components/_resource.scss) and are a different problem.
+   */
+  .swse .sheet-body table:not(.skill) th {
+    white-space: nowrap;
+    padding-inline: 4px;
+  }
+
+}
+
+/* =====================================================================================
+ *  3.  NARROW — phone.  One column.
+ * ===================================================================================== */
+@media (max-width: 700px) {
+
+  /* ---- 3a. panels stop sitting next to each other -----------------------------------
+   * Every structural row in the SWSE templates is `<div class="flex flex-row">` and
+   * `.flex-row { flex-wrap: nowrap }` (scss/global/_flex.scss), which is what produced
+   * 377px of horizontal overflow inside a 374px form.  Rather than stack *every* flex row
+   * — many of them are label/value pairs that must stay horizontal — stack exactly the
+   * rows whose children are themselves panels or columns.  That is the structural set. */
+  .swse .sheet-body .flex-row:has(> .panel),
+  .swse .sheet-body .flex-row:has(> .flex-col),
+  .swse .sheet-body .flex-row:has(> .flex-column),
+  .swse .sheet-body .flex-row:has(> .resource),
+  .swse .sheet-body .flex-row:has(> .skills-header) {
+    flex-direction: column;
+    flex-wrap: nowrap;
+  }
+
+  .swse .sheet-body .panel,
+  .swse .sheet-body .flex-col > .panel {
+    width: auto;
+    min-width: 0;
+  }
+
+  /* ---- 3b. the explicit column grids collapse to one column ----------------------
+   * `.grid-2col` (scss/global/_grid.scss) is what puts the Unequipped and Equipped item
+   * lists next to each other.  At 390px that is 180px per list, and because grid rows
+   * stretch to the tallest cell, an empty list still claimed the full height of the other.
+   * Only the `grid-Ncol` family is collapsed: `.ability-score` and `.item-pane` also use
+   * `grid-template-columns` and are meant to stay multi-column. */
+  .swse .sheet-body .grid,
+  .swse .sheet-body .grid-2col,
+  .swse .sheet-body .grid-3col,
+  .swse .sheet-body .grid-4col,
+  .swse .sheet-body .grid-5col,
+  .swse .sheet-body .grid-6col,
+  .swse .sheet-body .grid-7col,
+  .swse .sheet-body .grid-8col {
+    grid-template-columns: minmax(0, 1fr);
+    grid-column: auto;
+  }
+
+  /* A scroll container inside a single-column list no longer needs to fight for height. */
+  .swse .sheet-body .item-container > .scroll-container {
+    max-height: 60vh;
+  }
+
+  /* ---- 3c. remaining rows wrap instead of overflowing -------------------------------
+   * The size classes carry fixed bases (`.small` 75px, `.medium` 150px, `.large` 300px,
+   * `.huge` 600px) with `flex-grow` but no `min-width: 0`, so a row of three of them
+   * cannot fit 374px and cannot wrap either. */
+  .swse .sheet-body .flex-row,
+  .swse .sheet-body .flex.flex-row {
+    flex-wrap: wrap;
+  }
+
+  .swse .sheet-body .tiny,
+  .swse .sheet-body .small,
+  .swse .sheet-body .medium,
+  .swse .sheet-body .large,
+  .swse .sheet-body .huge {
+    min-width: 0;
+  }
+
+  .swse .sheet-body .large { flex-basis: 45%; }
+  .swse .sheet-body .huge { flex-basis: 100%; }
+
+  /* Two fields per row is the readable maximum at this width. */
+  .swse .sheet-body .flex-row > .labeled-input {
+    flex: 1 1 42%;
+    min-width: 8rem;
+  }
+
+  /* ...except in the ability-score grid, which is a table drawn with flexbox: label plus
+   * Score / Temp / Mod must stay on one line or the numbers lose their column. */
+  .swse .ability-scores .flex-row {
+    flex-wrap: nowrap;
+  }
+  .swse .ability-scores .flex-row > * {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+  .swse .ability-scores .flex-row > .medium {
+    flex: 2 1 0;
+  }
+  .swse .ability-scores .flex-row > .small {
+    flex: 1 1 0;
+  }
+  .swse .ability-scores .flex-row > .labeled-input {
+    min-width: 0;
+  }
+
+  /* A field with three stacked controls cannot share a row with anything. */
+  .swse .sheet-body .flex-row > .labeled-input:has(> .control-2),
+  .swse .sheet-body .flex-row > .labeled-input:has(> .left-control-2) {
+    flex: 1 1 100%;
+  }
+
+  /* ---- 3d. the summary header -------------------------------------------------------
+   * `.summary-header > * { flex: 1 }` with `flex-wrap: wrap` already wraps, but the
+   * children have no basis so they end up one per line at random widths. */
+  .swse .summary-header > * {
+    flex: 1 1 45%;
+    min-width: 9rem;
+  }
+
+  /* ---- 3e. the portrait ------------------------------------------------------------
+   * `.profile-img { width: 100%; height: 100% }` inside a column layout with no height
+   * makes the image collapse or explode depending on the parent. */
+  .swse .portrait .portrait-container {
+    max-height: 40vh;
+  }
+  .swse .portrait img.profile-img {
+    height: auto;
+    max-height: 40vh;
+    object-position: center;
+  }
+
+  /* ---- 3f. the fixed-height sheet header on the sheets that have one -----------------
+   * `.swse .sheet-header { flex: 0 0 210px }` (css/swse.css:243) is a quarter of a 844px
+   * phone screen spent on a portrait and a name.  The character sheet has no
+   * `.sheet-header` at all, but computer-sheet.hbs / vehicle-sheet.hbs / npc-sheet.hbs do,
+   * so the rule is worth relaxing rather than leaving as a trap. */
+  .swse .sheet-header {
+    flex: 0 0 auto;
+    max-height: 40vh;
+    overflow: visible;
+  }
+  .swse .sheet-header .profile-img {
+    flex: 0 0 72px;
+    height: 72px;
+  }
+  .swse .sheet-header h1.charname {
+    height: auto;
+  }
+
+  /* ---- 3g. editors ---------------------------------------------------------------- */
+  .swse .tox-tinymce,
+  .swse .editor,
+  .swse prose-mirror {
+    min-height: 40vh;
+  }
+}
+
+/* =====================================================================================
+ *  4.  The compact play view (Stufe 3).  Its own application, so it needs no gating —
+ *      it only ever exists when the user opens it.
+ * ===================================================================================== */
+.application.swse-mobile-play {
+  --swse-play-gap: 0.5rem;
+}
+
+.application.swse-mobile-play .window-content {
+  padding: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.swse-mobile-play .play-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+  padding: var(--swse-play-gap);
+  display: flex;
+  flex-direction: column;
+  gap: var(--swse-play-gap);
+}
+
+.swse-mobile-play .play-group {
+  border: 1px solid var(--color-border-dark, #7a7971);
+  border-radius: 6px;
+  padding: 0.4rem;
+}
+
+.swse-mobile-play .play-group > h3 {
+  margin: 0 0 0.35rem;
+  font-size: var(--font-size-14, 0.875rem);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border: none;
+}
+
+/* Big numbers: the whole point of this view is reading them across a table. */
+.swse-mobile-play .play-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(5.5rem, 1fr));
+  gap: var(--swse-play-gap);
+}
+
+.swse-mobile-play .play-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 3.5rem;
+  padding: 0.25rem;
+  border: 1px solid var(--color-border-light-tertiary, #c9c7b8);
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.swse-mobile-play .play-stat > .k {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  opacity: 0.75;
+  text-align: center;
+}
+
+.swse-mobile-play .play-stat > .v {
+  font-size: 1.5rem;
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.swse-mobile-play .play-hp {
+  display: flex;
+  align-items: center;
+  gap: var(--swse-play-gap);
+}
+
+.swse-mobile-play .play-hp input {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: var(--swse-mob-target, 44px);
+  font-size: 1.35rem;
+  text-align: center;
+}
+
+.swse-mobile-play .play-hp button,
+.swse-mobile-play .play-row button,
+.swse-mobile-play .play-track button {
+  min-width: var(--swse-mob-target, 44px);
+  min-height: var(--swse-mob-target, 44px);
+}
+
+/* Condition track: one row of buttons, the active step marked. */
+.swse-mobile-play .play-track {
+  display: flex;
+  gap: 4px;
+}
+
+.swse-mobile-play .play-track button {
+  flex: 1 1 0;
+  padding: 0;
+}
+
+.swse-mobile-play .play-track button[aria-pressed="true"] {
+  outline: 3px solid var(--color-warm-2, #b85c1e);
+  outline-offset: -3px;
+  font-weight: 700;
+}
+
+/* Attacks and skills: a full-width tap row, value on the right. */
+.swse-mobile-play .play-row {
+  display: flex;
+  align-items: center;
+  gap: var(--swse-play-gap);
+  width: 100%;
+  min-height: var(--swse-mob-target, 44px);
+  padding: 0.25rem 0.4rem;
+  border: none;
+  border-bottom: 1px solid var(--color-border-light-primary, #b5b3a4);
+  background: none;
+  text-align: left;
+  border-radius: 0;
+  color: inherit;
+}
+
+.swse-mobile-play .play-row:last-child {
+  border-bottom: none;
+}
+
+.swse-mobile-play .play-row > .n {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The right-hand value is capped: an attack's formula can be long enough to squeeze the
+ * weapon's own name out of the row (measured before the context builder shortened it, and
+ * still worth defending against on a narrow screen). */
+.swse-mobile-play .play-row > .m {
+  flex: 0 1 auto;
+  max-width: 48%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.swse-mobile-play .play-row > i {
+  flex: 0 0 1.25rem;
+  text-align: center;
+  opacity: 0.7;
+}
+
+.swse-mobile-play .play-row:active {
+  background: rgba(0, 0, 0, 0.08);
+}
+
+.swse-mobile-play .play-empty {
+  opacity: 0.7;
+  font-style: italic;
+  padding: 0.25rem 0.4rem;
+}
+
+.swse-mobile-play .play-filter {
+  min-height: var(--swse-mob-target, 44px);
+  width: 100%;
+}
