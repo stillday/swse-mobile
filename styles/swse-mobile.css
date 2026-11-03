@@ -967,3 +967,313 @@
   min-height: var(--swse-mob-target, 44px);
   width: 100%;
 }
+
+/* =====================================================================================
+ *  5.  MOBILE UI CHROME — body.swse-mob-ui-active set by scripts/mobile-ui.mjs
+ *
+ *  Hides standard Foundry chrome and replaces it with a 56-px bottom nav bar.
+ *  Gate: (pointer: coarse) AND (max-width: 700px) — landscape or desktop is untouched.
+ * ===================================================================================== */
+
+@media (pointer: coarse) and (max-width: 700px) {
+
+  /* ---- 5a. Break out of transformed containing blocks ---------------------------------
+   * #ui-left, #ui-right have `transform: scale(var(--ui-scale))`.  At scale=1 this is an
+   * identity transform that changes nothing visually, but it makes those elements
+   * containing blocks for `position: fixed` descendants — so `right: 0` on a child is
+   * relative to #ui-right, not the viewport.  Remove the transform on mobile to restore
+   * the viewport as the fixed-positioning reference. */
+  body.swse-mob-ui-active #ui-left,
+  body.swse-mob-ui-active #ui-right {
+    transform: none !important;
+  }
+
+  /* ---- 5b. Hide standard Foundry chrome -------------------------------------------- */
+  body.swse-mob-ui-active #scene-controls,
+  body.swse-mob-ui-active #hotbar,
+  body.swse-mob-ui-active #players,
+  body.swse-mob-ui-active #pause,
+  body.swse-mob-ui-active #scene-navigation,
+  body.swse-mob-ui-active #sidebar-tabs,
+  body.swse-mob-ui-active #swse-fullscreen-btn {
+    display: none !important;
+  }
+
+  /* Scene controls: position fixed, slide in from left when open */
+  body.swse-mob-ui-active #scene-controls.swse-mob-panel-open {
+    display: flex !important;
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    bottom: calc(56px + env(safe-area-inset-bottom, 0px)) !important;
+    width: auto !important;
+    max-width: 80vw !important;
+    height: auto !important;
+    z-index: 10001 !important;
+    background: rgba(20, 18, 15, 0.97) !important;
+    padding: 16px !important;
+    overflow-y: auto !important;
+    pointer-events: all !important;
+    box-shadow: 4px 0 24px rgba(0, 0, 0, 0.6) !important;
+  }
+
+  /* Sidebar content: off-screen to the right, slides in when open */
+  body.swse-mob-ui-active #sidebar-content {
+    position: fixed !important;
+    top: 0 !important;
+    right: -90vw !important;
+    bottom: calc(56px + env(safe-area-inset-bottom, 0px)) !important;
+    width: 85vw !important;
+    height: auto !important;
+    max-height: none !important;
+    margin-right: 0 !important;
+    z-index: 10001 !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    transition: right 0.25s ease !important;
+    background: var(--color-background-primary, #2d2b25) !important;
+    border-left: 1px solid rgba(255, 255, 255, 0.15) !important;
+    box-shadow: -4px 0 24px rgba(0, 0, 0, 0.6) !important;
+    display: flex !important;
+    flex-direction: column !important;
+  }
+
+  body.swse-mob-ui-active #sidebar-content.swse-mob-panel-open {
+    right: 0 !important;
+    margin-right: 0 !important;
+  }
+
+  /* Hotbar: popup above the nav bar when open */
+  body.swse-mob-ui-active #hotbar.swse-mob-panel-open {
+    display: flex !important;
+    position: fixed !important;
+    bottom: calc(60px + env(safe-area-inset-bottom, 0px)) !important;
+    left: 50% !important;
+    transform: translateX(-50%) !important;
+    right: auto !important;
+    z-index: 10001 !important;
+    pointer-events: all !important;
+    background: rgba(20, 18, 15, 0.97) !important;
+    border: 1px solid rgba(255, 255, 255, 0.2) !important;
+    border-radius: 10px !important;
+    padding: 8px !important;
+    box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.5) !important;
+  }
+
+  /* ---- 5b. Backdrop ----------------------------------------------------------------- */
+  #swse-mob-backdrop {
+    display: none;
+    position: fixed;
+    inset: 0;
+    bottom: calc(56px + env(safe-area-inset-bottom, 0px));
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 10000;
+    pointer-events: all;
+  }
+
+  #swse-mob-backdrop.swse-mob-panel-open {
+    display: block;
+  }
+
+  /* ---- 5c. Bottom nav bar ----------------------------------------------------------- */
+  #swse-mob-bar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: calc(56px + env(safe-area-inset-bottom, 0px));
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    display: flex;
+    align-items: stretch;
+    background: rgba(20, 18, 15, 0.95);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border-top: 1px solid rgba(255, 255, 255, 0.12);
+    z-index: 10002;
+    pointer-events: all;
+  }
+
+  .swse-mob-btn {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    min-height: 44px;
+    background: none;
+    border: none;
+    border-radius: 0;
+    color: rgba(255, 255, 255, 0.6);
+    font-size: 10px;
+    cursor: pointer;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+    transition: color 0.15s;
+    padding: 0;
+  }
+
+  .swse-mob-btn i {
+    font-size: 18px;
+    line-height: 1.2;
+  }
+
+  .swse-mob-btn span {
+    font-size: 10px;
+    line-height: 1;
+  }
+
+  .swse-mob-btn:active {
+    background: rgba(255, 255, 255, 0.08);
+  }
+
+  .swse-mob-btn[aria-pressed="true"] {
+    color: var(--color-warm-2, #f0a000);
+  }
+
+  /* ---- 5d. "Menü" panel (slide-up grid) -------------------------------------------- */
+  #swse-mob-menu {
+    display: none;
+    position: fixed;
+    bottom: calc(56px + env(safe-area-inset-bottom, 0px));
+    left: 0;
+    right: 0;
+    z-index: 10001;
+    padding: 12px 12px 8px;
+    background: rgba(20, 18, 15, 0.97);
+    border-top: 1px solid rgba(255, 255, 255, 0.12);
+    pointer-events: all;
+  }
+
+  #swse-mob-menu.swse-mob-panel-open {
+    display: block;
+  }
+
+  .swse-mob-menu-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+  }
+
+  .swse-mob-menu-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    min-height: 64px;
+    background: rgba(255, 255, 255, 0.07);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 8px;
+    color: rgba(255, 255, 255, 0.85);
+    font-size: 11px;
+    cursor: pointer;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .swse-mob-menu-item i {
+    font-size: 20px;
+    line-height: 1.2;
+  }
+
+  .swse-mob-menu-item:active {
+    background: rgba(255, 255, 255, 0.14);
+  }
+
+  /* ---- 5e. Bottom clearance for Foundry interface and SWSE windows ------------------ */
+  /* Canvas is a sibling of interface; leave the canvas alone — it resizes via Foundry JS.
+   * Clamp windows so nothing hides under the nav bar. */
+  body.swse-mob-ui-active .window-app.swse {
+    height: calc(100dvh
+      - env(safe-area-inset-top, 0px)
+      - env(safe-area-inset-bottom, 0px)
+      - 56px) !important;
+    top: env(safe-area-inset-top, 0px) !important;
+  }
+
+  /* Any non-SWSE ApplicationV2 dialog should also stay above the bar */
+  body.swse-mob-ui-active .application:not(.swse) {
+    max-height: calc(100dvh - 56px - env(safe-area-inset-bottom, 0px));
+  }
+
+  /* ---- 5f. Sidebar inner content — give it enough room for chat input --------------- */
+  /* Foundry 14: form is .chat-form (class), input is #chat-message, buttons in #chat-controls */
+  body.swse-mob-ui-active #sidebar-content .chat-form {
+    padding: 8px;
+  }
+
+  body.swse-mob-ui-active #sidebar-content #chat-message {
+    min-height: var(--swse-mob-target, 44px);
+    font-size: 1rem;
+  }
+
+  body.swse-mob-ui-active #sidebar-content button[type="submit"],
+  body.swse-mob-ui-active #sidebar-content #chat-controls button {
+    min-height: var(--swse-mob-target, 44px);
+    min-width: var(--swse-mob-target, 44px);
+  }
+
+  /* Sidebar inner tabs should scroll */
+  body.swse-mob-ui-active #sidebar-content .directory-list {
+    overflow-y: auto;
+    max-height: calc(100dvh - 120px - 56px);
+  }
+
+  /* ---- 5g. Chat card styling ---------------------------------------------------------- */
+
+  /* Attack card action buttons (Damage / Half / Double / Heal) */
+  body.swse-mob-ui-active .message-content .buttons.flex.flex-row {
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    gap: 4px !important;
+    padding: 4px 0 !important;
+  }
+
+  body.swse-mob-ui-active .message-content .buttons.flex.flex-row button {
+    flex: 1 1 0 !important;
+    min-height: 44px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 2px !important;
+    padding: 4px 2px !important;
+    font-size: 11px !important;
+    line-height: 1.2 !important;
+    word-break: keep-all !important;
+    overflow-wrap: normal !important;
+    white-space: nowrap !important;
+  }
+
+  body.swse-mob-ui-active .message-content .buttons.flex.flex-row button br {
+    display: none !important;
+  }
+
+  body.swse-mob-ui-active .message-content .buttons.flex.flex-row button .button-text {
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    max-width: 100% !important;
+  }
+
+  /* Collapse expanded dice tooltip on mobile — saves vertical space */
+  body.swse-mob-ui-active .chat-message .dice-tooltip {
+    display: none !important;
+  }
+
+  /* Chat message readability */
+  body.swse-mob-ui-active .chat-message .message-content {
+    font-size: 14px !important;
+    line-height: 1.4 !important;
+  }
+
+  body.swse-mob-ui-active .chat-message .dice-formula {
+    font-size: 13px !important;
+  }
+
+  body.swse-mob-ui-active .chat-message .dice-total {
+    font-size: 20px !important;
+    font-weight: bold !important;
+  }
+}

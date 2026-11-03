@@ -21,6 +21,7 @@
 import { registerWindowFit, refitAll } from "./window-fit.mjs";
 import { registerTouchSupport, touchStats } from "./touch.mjs";
 import { registerPlaySheet, openPlaySheet, SWSEMobilePlaySheet } from "./play-sheet.mjs";
+import { registerMobileUI } from "./mobile-ui.mjs";
 
 export const MODULE_ID = "swse-mobile";
 
@@ -107,6 +108,7 @@ Hooks.once("init", () => {
 
   registerWindowFit();
   registerPlaySheet();
+  registerMobileUI();
 
   /* The public surface, also what the acceptance tests drive. */
   const mod = game.modules.get(MODULE_ID);
