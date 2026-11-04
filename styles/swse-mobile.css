@@ -1021,9 +1021,9 @@
   body.swse-mob-ui-active #sidebar-content {
     position: fixed !important;
     top: 0 !important;
-    right: -90vw !important;
+    right: -100vw !important;
     bottom: calc(56px + env(safe-area-inset-bottom, 0px)) !important;
-    width: 85vw !important;
+    width: 100vw !important;
     height: auto !important;
     max-height: none !important;
     margin-right: 0 !important;
@@ -1201,6 +1201,23 @@
   /* Foundry 14: form is .chat-form (class), input is #chat-message, buttons in #chat-controls */
   body.swse-mob-ui-active #sidebar-content .chat-form {
     padding: 8px;
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  body.swse-mob-ui-active #sidebar-content .chat-sidebar {
+    align-items: stretch !important;
+  }
+
+  body.swse-mob-ui-active #sidebar-content .chat-scroll {
+    width: 100% !important;
+    direction: ltr !important;
+  }
+
+  body.swse-mob-ui-active #sidebar-content .chat-log {
+    width: 100% !important;
+    max-width: none !important;
+    flex: 1 0 auto !important;
   }
 
   body.swse-mob-ui-active #sidebar-content #chat-message {
