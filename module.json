@@ -2,7 +2,7 @@
   "id": "swse-mobile",
   "title": "SWSE — Mobile & Tablet",
   "description": "Macht die Charakterblätter des Systems Star Wars: Saga Edition auf Handys und Tablets benutzbar: einspaltiges Layout unter kleinen Breiten, scrollbare Tab-Leiste, Berührungsziele von mindestens 44x44 px, Fenster die auf den Bildschirm passen, und eine kompakte Spielansicht für den Tisch. Das System selbst wird nicht verändert — alles greift von außen über CSS und Hooks.",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "compatibility": {
     "minimum": "14",
     "verified": "14.367"
@@ -43,5 +43,5 @@
   ],
   "url": "https://github.com/stillday/swse-mobile",
   "manifest": "https://raw.githubusercontent.com/stillday/swse-mobile/main/module.json",
-  "download": "https://github.com/stillday/swse-mobile/archive/refs/tags/0.1.0.zip"
+  "download": "https://github.com/stillday/swse-mobile/archive/refs/tags/0.2.0.zip"
 }
