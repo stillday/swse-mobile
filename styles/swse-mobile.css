@@ -1017,6 +1017,20 @@
     box-shadow: 4px 0 24px rgba(0, 0, 0, 0.6) !important;
   }
 
+  /* Every sidebar sub-page (settings, combat, journal, compendium, ...) fills the full panel width */
+  body.swse-mob-ui-active #sidebar-content > .sidebar-tab,
+  body.swse-mob-ui-active #sidebar-content > .sidebar-tab > section,
+  body.swse-mob-ui-active #sidebar-content > .sidebar-tab > .directory-list {
+    width: 100% !important;
+    max-width: none !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+    box-sizing: border-box !important;
+  }
+  body.swse-mob-ui-active #sidebar-content > .sidebar-tab.active {
+    flex: 1 1 auto !important;
+  }
+
   /* Sidebar content: off-screen to the right, slides in when open */
   body.swse-mob-ui-active #sidebar-content {
     position: fixed !important;
