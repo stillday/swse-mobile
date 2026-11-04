@@ -38,6 +38,12 @@
 const NARROW = 700;
 const COMPACT = 1023;
 
+/** Screen height minus the bottom navigation bar, so a full-screen window never hides behind it. */
+function usableHeight() {
+  const bar = document.getElementById("swse-mob-bar")?.offsetHeight ?? 0;
+  return window.innerHeight - bar;
+}
+
 /** Every open ApplicationV1 whose root element carries the `swse` class. */
 function openSwseV1Sheets() {
   const out = [];
@@ -72,7 +78,7 @@ function refit({ app, el }, { fill }) {
   if (fill) {
     /* On a phone a floating window is pointless: it can only ever be the whole screen. */
     width = vw;
-    height = vh;
+    height = usableHeight();
   } else {
     width = Math.min(Number.isFinite(wanted) ? Math.max(width, wanted) : width, vw);
     height = Math.min(Number.isFinite(wantedH) ? Math.max(height, wantedH) : height, vh);
@@ -122,7 +128,51 @@ export function revealActiveTab(el) {
   return { scrolledTo: nav.scrollLeft, tab: active.dataset.tab };
 }
 
+/**
+ * ApplicationV2 windows (compendium packs, item sheets, journals, settings ...) are not "swse" V1
+ * sheets, so the code above never touches them: they open as a small floating card at some odd
+ * offset, stacked on the previous one.  On the phone UI every framed window becomes the whole
+ * area above the bottom bar.  Small confirm/prompt dialogs keep their own size.
+ */
+function fitV2(app) {
+  if (!document.body.classList.contains("swse-mob-ui-active")) return;
+  if (!app?.hasFrame || !app.rendered) return;
+  if (app instanceof foundry.applications.api.DialogV2) return;
+  app.setPosition({ left: 0, top: 0, width: window.innerWidth, height: usableHeight() });
+}
+
+function openV2Windows() {
+  return [...foundry.applications.instances.values()].filter(a => a.rendered && a.hasFrame);
+}
+
 export function registerWindowFit() {
+  /*
+   * The old V1 sheets only fire "render<ClassName>" / "renderActorSheet"-style hooks in this core
+   * version, never "renderApplication" (see mobile-ui.mjs), so the V1 branch below would never run
+   * for them.  Pick the windows up from the DOM instead.
+   */
+  new MutationObserver(mutations => {
+    for (const m of mutations) {
+      for (const node of m.addedNodes) {
+        if (!(node instanceof HTMLElement) || !node.classList.contains("window-app") || !node.classList.contains("swse")) continue;
+        setTimeout(() => {
+          try {
+            /* looked up late: the app registers itself in ui.windows after its element is inserted */
+            const app = ui.windows?.[node.dataset.appid];
+            if (!app) return;
+            if (window.innerWidth <= NARROW) refit({ app, el: node }, { fill: true });
+            revealActiveTab(node);
+          } catch { /* closed meanwhile */ }
+        }, 120);
+      }
+    }
+  }).observe(document.body, { childList: true, subtree: true });
+
+  Hooks.on("renderApplicationV2", app => {
+    /* let core finish its own positioning first, like the V1 branch below */
+    setTimeout(() => { try { fitV2(app); } catch { /* closed meanwhile */ } }, 0);
+  });
+
   /*
    * `_callHooks` walks the whole inheritance chain (application-v1.mjs:_callHooks), so
    * `renderApplication` fires for every V1 window including SWSEActorSheet — no need to
@@ -150,5 +200,8 @@ export function registerWindowFit() {
    * used: it fires *before* the new viewport metrics are readable on some browsers, whereas
    * `resize` always follows with the final numbers.
    */
-  window.addEventListener("resize", foundry.utils.debounce(() => refitAll(), 150), { passive: true });
+  window.addEventListener("resize", foundry.utils.debounce(() => {
+    refitAll();
+    for (const app of openV2Windows()) { try { fitV2(app); } catch { /* ignore */ } }
+  }, 150), { passive: true });
 }

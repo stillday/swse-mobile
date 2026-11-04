@@ -9,7 +9,7 @@
  * Desktop is completely unaffected — the class is never added, no elements are created.
  */
 
-const BAR_ID = "swse-mob-bar";
+export const BAR_ID = "swse-mob-bar";
 const MENU_ID = "swse-mob-menu";
 const BACKDROP_ID = "swse-mob-backdrop";
 const BODY_CLASS = "swse-mob-ui-active";
@@ -17,7 +17,7 @@ const BODY_CLASS = "swse-mob-ui-active";
 let activePanel = null;
 let activeSidebarTab = null;
 
-function isMobileUI() {
+export function isMobileUI() {
   return window.innerWidth <= 700 && matchMedia("(pointer: coarse)").matches;
 }
 
@@ -220,7 +220,39 @@ function ensureMenuPanel() {
   document.body.appendChild(menu);
 }
 
+/**
+ * A window opened out of a panel (a compendium pack, an actor, a journal ...) must not stay hidden
+ * behind that panel: the panels sit above every window, so close the panel as soon as a real,
+ * framed window appears.  Frameless core parts (sidebar tabs, hotbar, controls) are not windows.
+ *
+ * This watches the DOM instead of listening for render hooks: in this Foundry version the old
+ * (V1) sheets fire only "render<ClassName>" and "renderActorSheet"-style hooks, never the generic
+ * "renderApplication", so a generic hook silently misses them.
+ */
+function isWindowElement(node) {
+  if (!(node instanceof HTMLElement)) return false;
+  if (node.closest("#sidebar, #" + MENU_ID)) return false;
+  return node.matches(".window-app, .application") && !!node.querySelector(".window-header");
+}
+
+function watchWindows() {
+  const seen = new WeakSet();
+  const observer = new MutationObserver(mutations => {
+    if (!activePanel || !isMobileUI()) return;
+    for (const m of mutations) {
+      for (const node of m.addedNodes) {
+        if (!isWindowElement(node) || seen.has(node)) continue;
+        seen.add(node);
+        closePanel(activePanel);
+        return;
+      }
+    }
+  });
+  observer.observe(document.body, { childList: true, subtree: true });
+}
+
 export function registerMobileUI() {
+  Hooks.once("ready", watchWindows);
   Hooks.once("ready", () => {
     if (!isMobileUI()) return;
     document.body.classList.add(BODY_CLASS);
