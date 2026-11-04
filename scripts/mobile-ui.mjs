@@ -166,24 +166,52 @@ function ensureMenuPanel() {
         else document.exitFullscreen().catch(() => {});
         break;
       case "roll": {
-        const content = `<div style="padding:4px"><label for="mob-roll">Formel</label>
-          <input id="mob-roll" type="text" value="1d20" placeholder="1d20+5"
-            aria-label="Würfelformel" style="width:100%;margin-top:4px;font-size:1.1rem"></div>`;
-        new Dialog({
+        const dice = [4, 6, 8, 10, 12, 20, 100];
+        const content = `<div class="swse-mob-dice">
+          <div class="swse-mob-dice-grid">${dice.map(d =>
+            `<button type="button" class="swse-mob-die" data-die="${d}" aria-label="d${d} hinzufügen">d${d}<small></small></button>`).join("")}</div>
+          <div class="swse-mob-dice-mod">
+            <button type="button" data-mod="-1" aria-label="Modifikator minus">−</button>
+            <span id="mob-mod">+0</span>
+            <button type="button" data-mod="1" aria-label="Modifikator plus">+</button>
+            <button type="button" data-reset aria-label="Zurücksetzen"><i class="fas fa-rotate-left"></i></button>
+          </div>
+          <input id="mob-roll" type="text" value="1d20" aria-label="Würfelformel">
+        </div>`;
+        const pool = {};
+        let mod = 0;
+        const dlg = new Dialog({
           title: "Würfeln",
           content,
+          render: html => {
+            const root = html[0] ?? html;
+            const field = root.querySelector("#mob-roll");
+            const refresh = () => {
+              const parts = dice.filter(d => pool[d]).map(d => `${pool[d]}d${d}`);
+              if (parts.length || mod) field.value = (parts.join(" + ") || "0") + (mod ? (mod > 0 ? ` + ${mod}` : ` - ${-mod}`) : "");
+              else field.value = "1d20";
+              root.querySelector("#mob-mod").textContent = (mod >= 0 ? "+" : "−") + Math.abs(mod);
+              root.querySelectorAll(".swse-mob-die").forEach(b => { b.querySelector("small").textContent = pool[b.dataset.die] ? `×${pool[b.dataset.die]}` : ""; });
+            };
+            root.querySelectorAll(".swse-mob-die").forEach(b => b.addEventListener("click", () => { pool[b.dataset.die] = (pool[b.dataset.die] ?? 0) + 1; refresh(); }));
+            root.querySelectorAll("[data-mod]").forEach(b => b.addEventListener("click", () => { mod += Number(b.dataset.mod); refresh(); }));
+            root.querySelector("[data-reset]").addEventListener("click", () => { for (const k of Object.keys(pool)) delete pool[k]; mod = 0; refresh(); });
+          },
           buttons: {
             roll: {
               icon: `<i class="fas fa-dice-d20"></i>`,
               label: "Würfeln",
               callback: html => {
-                const formula = html.find("#mob-roll").val().trim();
-                if (formula) new Roll(formula).toMessage({ flavor: "Schnellwurf" });
+                const formula = (html[0] ?? html).querySelector("#mob-roll").value.trim();
+                if (!formula) return;
+                if (!Roll.validate(formula)) return ui.notifications.warn(`„${formula}“ ist keine gültige Würfelformel.`);
+                new Roll(formula).toMessage({ flavor: "Schnellwurf" });
               }
             }
           },
           default: "roll"
-        }).render(true);
+        });
+        dlg.render(true);
         break;
       }
     }

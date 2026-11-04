@@ -1308,3 +1308,12 @@
     font-weight: bold !important;
   }
 }
+
+/* Dice picker (menu > Würfeln) */
+.swse-mob-dice-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 10px; }
+.swse-mob-die { min-height: 52px; font-size: 1.15rem; font-weight: 700; display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1.1; }
+.swse-mob-die small { font-size: .75rem; min-height: .9em; color: var(--color-text-hyperlink, #ff9d4d); }
+.swse-mob-dice-mod { display: flex; align-items: center; justify-content: center; gap: 12px; margin-bottom: 10px; }
+.swse-mob-dice-mod button { min-width: 48px; min-height: 48px; font-size: 1.3rem; }
+.swse-mob-dice-mod span { min-width: 3ch; text-align: center; font-size: 1.3rem; font-weight: 700; }
+.swse-mob-dice input#mob-roll { width: 100%; font-size: 1.1rem; text-align: center; }
